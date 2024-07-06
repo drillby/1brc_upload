@@ -1,4 +1,7 @@
+import hashlib
 import os
+import random
+import string
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
@@ -16,7 +19,19 @@ try:
     app.config.from_object("config.Config")
 except Exception as e:
     # load config from os.getenv if config.py is not found
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+    app.config["SECRET_KEY"] = os.getenv(
+        "SECRET_KEY",
+        hashlib.sha256(
+            bytes(
+                "{}".format(
+                    "".join(
+                        random.choices(string.ascii_uppercase + string.digits, k=16)
+                    )
+                ),
+                encoding="utf-8",
+            )
+        ).hexdigest(),
+    )
     app.config["UPLOAD_FOLDER"] = os.getenv("UPLOAD_FOLDER", "uploads")
     app.config["MAX_CONTENT_LENGTH"] = eval(
         os.getenv("MAX_CONTENT_LENGTH", str(1 * 1024 * 1024))
