@@ -10,10 +10,26 @@ from .helper import SMTPHandler, run_script
 from .messages import EmailMessages, FileUploadMessages
 
 app = Flask(__name__)
+
+
 try:
     app.config.from_object("config.Config")
 except Exception as e:
-    print(e)
+    # load config from os.getenv if config.py is not found
+    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+    app.config["UPLOAD_FOLDER"] = os.getenv("UPLOAD_FOLDER", "uploads")
+    app.config["MAX_CONTENT_LENGTH"] = eval(
+        os.getenv("MAX_CONTENT_LENGTH", str(1 * 1024 * 1024))
+    )
+    app.config["ALLOWED_EXTENSIONS"] = set(os.getenv("ALLOWED_EXTENSIONS", {"py"}))
+    app.config["TIMEOUT"] = eval(os.getenv("TIMEOUT", str(15 * 60)))
+
+    app.config["EMAIL_ADDRESS"] = os.getenv("EMAIL_ADDRESS")
+    app.config["EMAIL_PASSWORD"] = os.getenv("EMAIL_PASSWORD")
+    app.config["SMTP_SERVER"] = os.getenv("SMTP_SERVER")
+    app.config["SMTP_PORT"] = int(os.getenv("SMTP_PORT", 587))
+    app.config["ALLOWED_DOMAINS"] = os.getenv("ALLOWED_DOMAINS", {"spskladno.cz"})
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("SQLALCHEMY_DATABASE_URI")
 
 db.init_app(app)
 with app.app_context():
