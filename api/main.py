@@ -2,6 +2,7 @@ import hashlib
 import os
 import random
 import string
+import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
@@ -92,7 +93,7 @@ def upload_file():
 
     filename = file.filename
 
-    file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    """file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(file_path)
 
     flash(FileUploadMessages.FILE_UPLOADED.value, "success")
@@ -115,7 +116,34 @@ def upload_file():
         file_path=file_path,
         action=action,
         timeout=app.config["TIMEOUT"],
-    )
+    )"""
+
+    with tempfile.NamedTemporaryFile() as temp:
+        temp.write(file.read())
+        temp.flush()
+        temp.seek(0)
+
+        flash(FileUploadMessages.FILE_UPLOADED.value, "success")
+
+        smtp = SMTPHandler(
+            app.config["EMAIL_ADDRESS"],
+            app.config["EMAIL_PASSWORD"],
+            app.config["SMTP_SERVER"],
+            app.config["SMTP_PORT"],
+        )
+
+        action = partial(
+            smtp.send_email,
+            email_address=request.form.get("email"),
+            subject=EmailMessages.HEADER.value,
+        )
+
+        executor.submit(
+            run_script,
+            file_path=temp.name,
+            action=action,
+            timeout=app.config["TIMEOUT"],
+        )
 
     return redirect(url_for("index"))
 
