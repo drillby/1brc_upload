@@ -1,8 +1,7 @@
-import os
+from flask import Flask
 
-from flask import render_template
-
-from api import app
+app = Flask(__name__)
+app.config.from_object("config.Config")
 
 
 @app.route("/")
