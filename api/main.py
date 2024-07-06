@@ -117,7 +117,7 @@ def upload_file():
         action=action,
         timeout=app.config["TIMEOUT"],
     )"""
-
+    # TODO: přesunout do tempdir i measurements.txt a zkusit spustit
     with tempfile.NamedTemporaryFile() as temp:
         temp.write(file.read())
         temp.flush()
