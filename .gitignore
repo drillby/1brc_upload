@@ -12,4 +12,4 @@ ENV/
 env.bak/ 
 venv.bak/ 
 .env.development.local
-api/config.py
+config.py

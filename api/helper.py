@@ -11,9 +11,10 @@ from os import PathLike
 from pathlib import Path
 from typing import Optional, Union
 
-import messages
-from main import db
-from models.user import User
+from api.main import db
+
+from .messages import EmailMessages
+from .models.user import User
 
 
 def run_script(file_path, timeout, action):
@@ -29,19 +30,19 @@ def run_script(file_path, timeout, action):
         runtime = end - start
 
         action(
-            body=messages.EmailMessages.SUCCESS.value.format(runtime=runtime)
+            body=EmailMessages.SUCCESS.value.format(runtime=runtime)
             + "\n"
-            + messages.EmailMessages.FOOTER.value
+            + EmailMessages.FOOTER.value
         )
     except Exception as e:
         if isinstance(e, subprocess.TimeoutExpired):
             action(
-                body=messages.EmailMessages.TIMEOUT.value.format(timeout=timeout)
+                body=EmailMessages.TIMEOUT.value.format(timeout=timeout)
                 + "\n"
-                + messages.EmailMessages.FOOTER.value
+                + EmailMessages.FOOTER.value
             )
         else:
-            action(body=messages.EmailMessages.RUNTIME_ERROR.value.format(error=e))
+            action(body=EmailMessages.RUNTIME_ERROR.value.format(error=e))
 
 
 class SMTPHandler:

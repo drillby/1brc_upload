@@ -2,13 +2,18 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
-import helper
-import messages
 from flask import Flask, flash, redirect, render_template, request, url_for
-from models.user import db
+
+from api.models.user import db
+
+from .helper import SMTPHandler, run_script
+from .messages import EmailMessages, FileUploadMessages
 
 app = Flask(__name__)
-app.config.from_object("config.Config")
+try:
+    app.config.from_object("config.Config")
+except Exception as e:
+    print(e)
 
 db.init_app(app)
 with app.app_context():
@@ -37,21 +42,21 @@ def index():
 @app.route("/", methods=["POST"])
 def upload_file():
     if "file" not in request.files:
-        flash(messages.FileUploadMessages.NO_FILE_SELECTED.value, "error")
+        flash(FileUploadMessages.NO_FILE_SELECTED.value, "error")
         return redirect(request.url)
 
     file = request.files.get("file")
 
     if file.filename == "":
-        flash(messages.FileUploadMessages.NO_FILE_SELECTED.value, "error")
+        flash(FileUploadMessages.NO_FILE_SELECTED.value, "error")
         return redirect(request.url)
 
     if not (file and allowed_file(file.filename)):
-        flash(messages.FileUploadMessages.WRONG_FILE_FORMAT.value, "error")
+        flash(FileUploadMessages.WRONG_FILE_FORMAT.value, "error")
         return redirect(request.url)
 
     if file.content_length > app.config["MAX_CONTENT_LENGTH"]:
-        flash(messages.FileUploadMessages.SIZE_LIMIT_EXCEEDED.value, "error")
+        flash(FileUploadMessages.SIZE_LIMIT_EXCEEDED.value, "error")
         return redirect(request.url)
 
     filename = file.filename
@@ -59,9 +64,9 @@ def upload_file():
     file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(file_path)
 
-    flash(messages.FileUploadMessages.FILE_UPLOADED.value, "success")
+    flash(FileUploadMessages.FILE_UPLOADED.value, "success")
 
-    smtp = helper.SMTPHandler(
+    smtp = SMTPHandler(
         app.config["EMAIL_ADDRESS"],
         app.config["EMAIL_PASSWORD"],
         app.config["SMTP_SERVER"],
@@ -71,11 +76,11 @@ def upload_file():
     action = partial(
         smtp.send_email,
         email_address=request.form.get("email"),
-        subject=messages.EmailMessages.HEADER.value,
+        subject=EmailMessages.HEADER.value,
     )
 
     executor.submit(
-        helper.run_script,
+        run_script,
         file_path=file_path,
         action=action,
         timeout=app.config["TIMEOUT"],
