@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, render_template
 
 app = Flask(__name__)
 app.config.from_object("config.Config")
@@ -6,5 +6,4 @@ app.config.from_object("config.Config")
 
 @app.route("/")
 def index():
-    return "Hello, World!"
-    # return render_template("index.html")
+    return render_template("index.html")
