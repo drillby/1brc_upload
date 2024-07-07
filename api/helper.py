@@ -20,20 +20,37 @@ from .models.user import User
 def run_script(file_path, timeout, action):
     try:
         start = time.time()
-        subprocess.run(
+        # res = subprocess.run(
+        #     ["python", file_path],
+        #     capture_output=True,
+        #     text=True,
+        #     timeout=timeout,
+        #     check=True,
+        # )
+        # run file_path python script as different subprocess
+        res = subprocess.run(
             ["python", file_path],
             capture_output=True,
-            text=True,
-            timeout=timeout,
+            timeout=float(timeout),
+            shell=True,
         )
+
         end = time.time()
         runtime = end - start
+        print(res)
+        if res.returncode != 0:
+            raise Exception(res.stderr)
+        else:
+            print(res.stdout)
+        print("Runtime: ", runtime)
 
-        action(
-            body=EmailMessages.SUCCESS.value.format(runtime=runtime)
-            + "\n"
-            + EmailMessages.FOOTER.value
-        )
+        print("Sending email")
+        # action(
+        #     body=EmailMessages.SUCCESS.value.format(runtime=runtime)
+        #     + "\n"
+        #     + EmailMessages.FOOTER.value
+        # )
+        print("Success")
     except Exception as e:
         if isinstance(e, subprocess.TimeoutExpired):
             action(
@@ -41,8 +58,14 @@ def run_script(file_path, timeout, action):
                 + "\n"
                 + EmailMessages.FOOTER.value
             )
+            print("Timeout")
         else:
-            action(body=EmailMessages.RUNTIME_ERROR.value.format(error=e))
+            action(
+                body=EmailMessages.RUNTIME_ERROR.value.format(error=e)
+                + "\n"
+                + EmailMessages.FOOTER.value
+            )
+            print("Runtime error")
 
 
 class SMTPHandler:
