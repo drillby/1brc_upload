@@ -1,7 +1,5 @@
-import hashlib
 import os
-import random
-import string
+import shutil
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
@@ -15,55 +13,21 @@ from .messages import EmailMessages, FileUploadMessages
 
 app = Flask(__name__)
 
+deploy = os.getenv("FLASK_ENV", "development")
 
-try:
-    app.config.from_object("config.Config")
-except Exception as e:
-    # load config from os.getenv if config.py is not found
-    app.config["SECRET_KEY"] = os.getenv(
-        "SECRET_KEY",
-        hashlib.sha256(
-            bytes(
-                "{}".format(
-                    "".join(
-                        random.choices(string.ascii_uppercase + string.digits, k=16)
-                    )
-                ),
-                encoding="utf-8",
-            )
-        ).hexdigest(),
-    )
-    app.config["UPLOAD_FOLDER"] = os.getenv("UPLOAD_FOLDER", "uploads")
-    app.config["MAX_CONTENT_LENGTH"] = eval(
-        os.getenv("MAX_CONTENT_LENGTH", str(1 * 1024 * 1024))
-    )
-    app.config["ALLOWED_EXTENSIONS"] = set(os.getenv("ALLOWED_EXTENSIONS", {"py"}))
-    app.config["TIMEOUT"] = eval(os.getenv("TIMEOUT", str(15 * 60)))
-
-    app.config["EMAIL_ADDRESS"] = os.getenv("EMAIL_ADDRESS")
-    app.config["EMAIL_PASSWORD"] = os.getenv("EMAIL_PASSWORD")
-    app.config["SMTP_SERVER"] = os.getenv("SMTP_SERVER")
-    app.config["SMTP_PORT"] = int(os.getenv("SMTP_PORT", 587))
-    app.config["ALLOWED_DOMAINS"] = os.getenv("ALLOWED_DOMAINS", {"spskladno.cz"})
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("SQLALCHEMY_DATABASE_URI")
+app.config.from_object("config.Config")
+if deploy == "development":
+    app.config.from_object("devconf.DevelopmentConfig")
+else:
+    app.config.from_object("config.ProductionConfig")
 
 db.init_app(app)
 with app.app_context():
     db.create_all()
 
 
-executor = ThreadPoolExecutor()
-
-
-if not os.path.exists(app.config["UPLOAD_FOLDER"]):
-    os.makedirs(app.config["UPLOAD_FOLDER"])
-
-
-def allowed_file(filename: str):
-    return (
-        "." in filename
-        and filename.rsplit(".", 1)[1].lower() in app.config["ALLOWED_EXTENSIONS"]
-    )
+def allowed_file(filename: str, allwed_extensions: set):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in allwed_extensions
 
 
 @app.route("/")
@@ -83,7 +47,7 @@ def upload_file():
         flash(FileUploadMessages.NO_FILE_SELECTED.value, "error")
         return redirect(request.url)
 
-    if not (file and allowed_file(file.filename)):
+    if not (file and allowed_file(file.filename, app.config["ALLOWED_EXTENSIONS"])):
         flash(FileUploadMessages.WRONG_FILE_FORMAT.value, "error")
         return redirect(request.url)
 
@@ -118,35 +82,49 @@ def upload_file():
         timeout=app.config["TIMEOUT"],
     )"""
     # TODO: přesunout do tempdir i measurements.txt a zkusit spustit
-    with tempfile.NamedTemporaryFile() as temp:
-        temp.write(file.read())
-        temp.flush()
-        temp.seek(0)
 
-        flash(FileUploadMessages.FILE_UPLOADED.value, "success")
+    # create temp dir
+    temp_dir = tempfile.mkdtemp()
+    file_path = os.path.join(temp_dir, filename)
+    file.save(file_path)
 
-        smtp = SMTPHandler(
-            app.config["EMAIL_ADDRESS"],
-            app.config["EMAIL_PASSWORD"],
-            app.config["SMTP_SERVER"],
-            app.config["SMTP_PORT"],
-        )
+    current_dir = os.getcwd()
+    measurements_path = os.path.join(current_dir, "api", "static", "measurements.txt")
 
-        action = partial(
-            smtp.send_email,
-            email_address=request.form.get("email"),
-            subject=EmailMessages.HEADER.value,
-        )
+    data_dir = os.path.join(temp_dir, "data")
+    os.makedirs(data_dir)
 
-        executor.submit(
-            run_script,
-            file_path=temp.name,
-            action=action,
-            timeout=app.config["TIMEOUT"],
-        )
+    shutil.copy(measurements_path, data_dir)
+
+    flash(FileUploadMessages.FILE_UPLOADED.value, "success")
+
+    smtp = SMTPHandler(
+        app.config["EMAIL_ADDRESS"],
+        app.config["EMAIL_PASSWORD"],
+        app.config["SMTP_SERVER"],
+        app.config["SMTP_PORT"],
+    )
+
+    action = partial(
+        smtp.send_email,
+        email_address=request.form.get("email"),
+        subject=EmailMessages.HEADER.value,
+    )
+
+    executor = ThreadPoolExecutor(thread_name_prefix="flask-script-executor")
+
+    executor.submit(
+        run_script,
+        file_path=file_path,
+        action=action,
+        timeout=app.config["TIMEOUT"],
+    )
+
+    # remove temp dir and all its content
+    shutil.rmtree(temp_dir)
 
     return redirect(url_for("index"))
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
