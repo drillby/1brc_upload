@@ -1,33 +1,13 @@
 import os
-import shutil
-import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import flash, redirect, render_template, request, url_for
 
-from api.models.user import db
+from api import app
+from api.helper import SMTPHandler, allowed_file, run_script
 
-from .helper import SMTPHandler, run_script
-from .messages import EmailMessages, FileUploadMessages
-
-app = Flask(__name__)
-
-deploy = os.getenv("FLASK_ENV", "development")
-
-app.config.from_object("config.Config")
-if deploy == "development":
-    app.config.from_object("devconf.DevelopmentConfig")
-else:
-    app.config.from_object("config.ProductionConfig")
-
-db.init_app(app)
-with app.app_context():
-    db.create_all()
-
-
-def allowed_file(filename: str, allwed_extensions: set):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in allwed_extensions
+from ..messages import EmailMessages, FileUploadMessages
 
 
 @app.route("/")
@@ -57,7 +37,7 @@ def upload_file():
 
     filename = file.filename
 
-    """file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(file_path)
 
     flash(FileUploadMessages.FILE_UPLOADED.value, "success")
@@ -75,15 +55,16 @@ def upload_file():
         subject=EmailMessages.HEADER.value,
     )
 
+    executor = ThreadPoolExecutor(thread_name_prefix="flask-script-executor")
     executor.submit(
         run_script,
         file_path=file_path,
         action=action,
         timeout=app.config["TIMEOUT"],
-    )"""
+    )
     # TODO: přesunout do tempdir i measurements.txt a zkusit spustit
 
-    # create temp dir
+    """# create temp dir
     temp_dir = tempfile.mkdtemp()
     file_path = os.path.join(temp_dir, filename)
     file.save(file_path)
@@ -121,10 +102,6 @@ def upload_file():
     )
 
     # remove temp dir and all its content
-    shutil.rmtree(temp_dir)
+    shutil.rmtree(temp_dir)"""
 
     return redirect(url_for("index"))
-
-
-if __name__ == "__main__":
-    app.run()

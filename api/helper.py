@@ -9,31 +9,27 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from os import PathLike
 from pathlib import Path
-from typing import Optional, Union
-
-from api.main import db
+from typing import Iterable, Optional, Union
 
 from .messages import EmailMessages
 from .models.user import User
 
 
+def allowed_file(filename: str, allwed_extensions: Iterable[str]) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in allwed_extensions
+
+
 def run_script(file_path, timeout, action):
     try:
         start = time.time()
-        # res = subprocess.run(
-        #     ["python", file_path],
-        #     capture_output=True,
-        #     text=True,
-        #     timeout=timeout,
-        #     check=True,
-        # )
-        # run file_path python script as different subprocess
         res = subprocess.run(
             ["python", file_path],
             capture_output=True,
-            timeout=float(timeout),
-            shell=True,
+            text=True,
+            timeout=timeout,
+            check=True,
         )
+        # run file_path python script as different subprocess
 
         end = time.time()
         runtime = end - start
@@ -41,16 +37,16 @@ def run_script(file_path, timeout, action):
         if res.returncode != 0:
             raise Exception(res.stderr)
         else:
+            # validate output
             print(res.stdout)
         print("Runtime: ", runtime)
 
         print("Sending email")
-        # action(
-        #     body=EmailMessages.SUCCESS.value.format(runtime=runtime)
-        #     + "\n"
-        #     + EmailMessages.FOOTER.value
-        # )
-        print("Success")
+        action(
+            body=EmailMessages.SUCCESS.value.format(runtime=runtime)
+            + "\n"
+            + EmailMessages.FOOTER.value
+        )
     except Exception as e:
         if isinstance(e, subprocess.TimeoutExpired):
             action(
@@ -58,14 +54,12 @@ def run_script(file_path, timeout, action):
                 + "\n"
                 + EmailMessages.FOOTER.value
             )
-            print("Timeout")
         else:
             action(
                 body=EmailMessages.RUNTIME_ERROR.value.format(error=e)
                 + "\n"
                 + EmailMessages.FOOTER.value
             )
-            print("Runtime error")
 
 
 class SMTPHandler:
