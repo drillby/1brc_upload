@@ -13,3 +13,6 @@ env.bak/
 venv.bak/ 
 .env.development.local
 devconf.py
+
+uploads
+set_os_vars.sh
