@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="cs">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Leaderboard</title>
+		<link
+			rel="stylesheet"
+			href="{{
+			url_for('static', filename='leaderboard.css')
+		}}"
+		/>
+		<link
+			rel="icon"
+			href="{{
+			url_for('static', filename='imgs/favicon-32x32.png')
+		}}"
+		/>
+	</head>
+	<body>
+		<div class="container">
+			<h1>Leaderboard</h1>
+			{% if users %}
+			<table>
+				<thead>
+					<tr>
+						<th>Pořadí</th>
+						<th>Email</th>
+						<th>Čas</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for user in users %}
+					<tr
+						class="{% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% elif loop.index == 3 %}bronze{% endif %}"
+					>
+						<td>{{ loop.index }}</td>
+						<td>{{ user.email }}</td>
+						<td>{{ user.best_time }}</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+			{% else %}
+			<p>Žádné výsledky nebyly nahrány</p>
+			{% endif %}
+		</div>
+	</body>
+</html>
