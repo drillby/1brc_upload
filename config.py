@@ -21,6 +21,7 @@ class Config:
     MAX_CONTENT_LENGTH = eval(os.getenv("MAX_CONTENT_LENGTH", str(1)) + "* 1024 * 1024")
     ALLOWED_EXTENSIONS = set(os.getenv("ALLOWED_EXTENSIONS", "py").split(","))
     TIMEOUT = eval(os.getenv("TIMEOUT", str(0.5) + " * 60"))
+    UPLOAD_FOLDER = os.getenv("UPLOAD_FOLDER", "uploads")
 
 
 class ProductionConfig(Config):
