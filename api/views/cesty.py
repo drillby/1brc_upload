@@ -5,9 +5,10 @@ from functools import partial
 from flask import flash, redirect, render_template, request, url_for
 
 from api import app
-from api.helper import SMTPHandler, allowed_file, run_script
+from api.helper import SMTPHandler, allowed_email_domain, allowed_file, run_script
 
-from ..messages import EmailMessages, FileUploadMessages
+from ..messages import EmailMessages, FileUploadMessages, MessageType, UserMessages
+from ..models.user import User, db
 
 
 @app.route("/")
@@ -17,31 +18,95 @@ def index():
 
 @app.route("/", methods=["POST"])
 def upload_file():
-    if "file" not in request.files:
-        flash(FileUploadMessages.NO_FILE_SELECTED.value, "error")
-        return redirect(request.url)
+    # get email and password from form
+    email = request.form.get("email")
+    password = request.form.get("password")
 
+    # get file from form
     file = request.files.get("file")
-
-    if file.filename == "":
-        flash(FileUploadMessages.NO_FILE_SELECTED.value, "error")
-        return redirect(request.url)
-
-    if not (file and allowed_file(file.filename, app.config["ALLOWED_EXTENSIONS"])):
-        flash(FileUploadMessages.WRONG_FILE_FORMAT.value, "error")
-        return redirect(request.url)
-
-    if file.content_length > app.config["MAX_CONTENT_LENGTH"]:
-        flash(FileUploadMessages.SIZE_LIMIT_EXCEEDED.value, "error")
-        return redirect(request.url)
-
     filename = file.filename
 
+    # check if email and password are not empty
+    if not email or not password:
+        flash(UserMessages.MISSING_CREDENTIALS.value, MessageType.ERROR.value)
+        return redirect(request.url)
+
+    if not allowed_email_domain(email, app.config["ALLOWED_DOMAINS"]):
+        flash(
+            UserMessages.WRONG_EMAIL_DOMAIN.value.format(
+                domains=", ".join(app.config["ALLOWED_DOMAINS"])
+            ),
+            MessageType.ERROR.value,
+        )
+        return redirect(request.url)
+
+    # check if user exists
+    user = User.query.filter_by(email=email).first()
+    is_new_user = False
+
+    # if user does not exist, create new user
+    if not user:
+        user = User(
+            email=email,
+            password=password,
+        )
+        db.session.add(user)
+        db.session.commit()
+        is_new_user = True
+        flash(UserMessages.USER_CREATED.value, MessageType.INFORMATION.value)
+
+    # if user exists, check password
+    if not is_new_user and not user.check_password(password):
+        flash(UserMessages.WRONG_PASSWORD.value, MessageType.ERROR.value)
+        return redirect(request.url)
+
+    # check if file was uploaded
+    if "file" not in request.files:
+        flash(FileUploadMessages.NO_FILE_SELECTED.value, MessageType.ERROR.value)
+        return redirect(request.url)
+
+    # check if file is empty
+    if file.filename == "":
+        flash(FileUploadMessages.NO_FILE_SELECTED.value, MessageType.ERROR.value)
+        return redirect(request.url)
+
+    # check if file is allowed
+    if not (file and allowed_file(file.filename, app.config["ALLOWED_EXTENSIONS"])):
+        flash(
+            FileUploadMessages.WRONG_FILE_FORMAT.value.format(
+                formats=", ".join(app.config["ALLOWED_DOMAINS"])
+            ),
+            MessageType.ERROR.value,
+        )
+        return redirect(request.url)
+
+    # check if file is not too big
+    if file.content_length > app.config["MAX_CONTENT_LENGTH"]:
+        flash(
+            FileUploadMessages.SIZE_LIMIT_EXCEEDED.value.format(
+                size=int(app.config["MAX_CONTENT_LENGTH"] / 1024 / 1024)
+            ),
+            MessageType.ERROR.value,
+        )
+        return redirect(request.url)
+
+    # check if file is close to limit size (80%)
+    if file.content_length > app.config["MAX_CONTENT_LENGTH"] * 0.8:
+        flash(
+            FileUploadMessages.SIZE_LIMIT_WARNING.value.format(
+                size=int(app.config["MAX_CONTENT_LENGTH"] / 1024 / 1024)
+            ),
+            MessageType.WARNING.value,
+        )
+
+    # save file
     file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+
     file.save(file_path)
 
-    flash(FileUploadMessages.FILE_UPLOADED.value, "success")
+    flash(FileUploadMessages.FILE_UPLOADED.value, MessageType.SUCCESS.value)
 
+    # prepare email
     smtp = SMTPHandler(
         app.config["EMAIL_ADDRESS"],
         app.config["EMAIL_PASSWORD"],
@@ -49,12 +114,14 @@ def upload_file():
         app.config["SMTP_PORT"],
     )
 
+    # prepare action
     action = partial(
         smtp.send_email,
-        email_address=request.form.get("email"),
+        email_address=email,
         subject=EmailMessages.HEADER.value,
     )
 
+    # run script in separate thread
     executor = ThreadPoolExecutor(thread_name_prefix="flask-script-executor")
     executor.submit(
         run_script,
@@ -62,46 +129,5 @@ def upload_file():
         action=action,
         timeout=app.config["TIMEOUT"],
     )
-    # TODO: přesunout do tempdir i measurements.txt a zkusit spustit
-
-    """# create temp dir
-    temp_dir = tempfile.mkdtemp()
-    file_path = os.path.join(temp_dir, filename)
-    file.save(file_path)
-
-    current_dir = os.getcwd()
-    measurements_path = os.path.join(current_dir, "api", "static", "measurements.txt")
-
-    data_dir = os.path.join(temp_dir, "data")
-    os.makedirs(data_dir)
-
-    shutil.copy(measurements_path, data_dir)
-
-    flash(FileUploadMessages.FILE_UPLOADED.value, "success")
-
-    smtp = SMTPHandler(
-        app.config["EMAIL_ADDRESS"],
-        app.config["EMAIL_PASSWORD"],
-        app.config["SMTP_SERVER"],
-        app.config["SMTP_PORT"],
-    )
-
-    action = partial(
-        smtp.send_email,
-        email_address=request.form.get("email"),
-        subject=EmailMessages.HEADER.value,
-    )
-
-    executor = ThreadPoolExecutor(thread_name_prefix="flask-script-executor")
-
-    executor.submit(
-        run_script,
-        file_path=file_path,
-        action=action,
-        timeout=app.config["TIMEOUT"],
-    )
-
-    # remove temp dir and all its content
-    shutil.rmtree(temp_dir)"""
 
     return redirect(url_for("index"))
