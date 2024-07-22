@@ -2,7 +2,7 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, redirect, render_template, request, send_file, url_for
 
 from api import app
 from api.helper import SMTPHandler, allowed_email_domain, allowed_file, run_script
@@ -100,7 +100,7 @@ def upload_file():
         )
 
     # save file
-    file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+    file_path = os.path.join(app.config["UPLOAD_FOLDER"], email.split("@")[0] + ".py")
 
     file.save(file_path)
 
@@ -131,3 +131,9 @@ def upload_file():
     )
 
     return redirect(url_for("index"))
+
+
+@app.route("/leaderboard")
+def leaderboard():
+    users = User.query.filter(User.best_time != 0).order_by(User.best_time).all()
+    return render_template("leaderboard.html", users=users)
