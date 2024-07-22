@@ -6,7 +6,14 @@
 		<link
 			rel="stylesheet"
 			href="{{
-			url_for('static', filename='style.css')
+			url_for('static', filename='index.css')
+		}}"
+		/>
+		<!-- add favicon -->
+		<link
+			rel="icon"
+			href="{{
+			url_for('static', filename='imgs/favicon-32x32.png')
 		}}"
 		/>
 	</head>
@@ -29,6 +36,12 @@
 				/>
 				<input type="submit" value="Upload" />
 			</form>
+
+			<!-- Nová tlačítka jako odkazy -->
+			<a href="{{url_for('leaderboard')}}" class="button">Leaderboards</a>
+			<a href="https://github.com/drillby/1brc_SPS_Kladno" class="button"
+				>O projektu</a
+			>
 		</div>
 	</body>
 </html>
