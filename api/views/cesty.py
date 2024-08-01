@@ -4,10 +4,16 @@ from functools import partial
 
 from flask import flash, redirect, render_template, request, send_file, url_for
 
-from api import app
+from api import app, limiter
 from api.helper import SMTPHandler, allowed_email_domain, allowed_file, run_script
 
-from ..messages import EmailMessages, FileUploadMessages, MessageType, UserMessages
+from ..messages import (
+    EmailMessages,
+    FileUploadMessages,
+    HttpErrorMessages,
+    MessageType,
+    UserMessages,
+)
 from ..models.user import User, db
 
 
@@ -66,12 +72,12 @@ def upload_file():
         return redirect(request.url)
 
     # check if file is empty
-    if file.filename == "":
+    if filename == "":
         flash(FileUploadMessages.NO_FILE_SELECTED.value, MessageType.ERROR.value)
         return redirect(request.url)
 
     # check if file is allowed
-    if not (file and allowed_file(file.filename, app.config["ALLOWED_EXTENSIONS"])):
+    if not (file and allowed_file(filename, app.config["ALLOWED_EXTENSIONS"])):
         flash(
             FileUploadMessages.WRONG_FILE_FORMAT.value.format(
                 formats=", ".join(app.config["ALLOWED_DOMAINS"])
@@ -137,3 +143,24 @@ def upload_file():
 def leaderboard():
     users = User.query.filter(User.best_time != 0).order_by(User.best_time).all()
     return render_template("leaderboard.html", users=users)
+
+
+@app.errorhandler(429)
+def ratelimit_handler(e):
+    err_num = e.code
+    err_value = HttpErrorMessages.TOO_MANY_REQUESTS.value
+    return render_template("error.html", err_num=err_num, err_value=err_value), 429
+
+
+@app.errorhandler(404)
+def page_not_found(e):
+    err_num = e.code
+    err_value = HttpErrorMessages.NOT_FOUND.value
+    return render_template("error.html", err_num=err_num, err_value=err_value), 404
+
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    err_num = e.code
+    err_value = HttpErrorMessages.INTERNAL_SERVER_ERROR.value
+    return render_template("error.html", err_num=err_num, err_value=err_value), 500

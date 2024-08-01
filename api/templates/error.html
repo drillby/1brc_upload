@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>{{ err_num }}</title>
+		<link
+			rel="stylesheet"
+			href="{{
+			url_for('static', filename='error.css')
+		}}"
+		/>
+		<!-- add favicon -->
+		<link
+			rel="icon"
+			href="{{
+			url_for('static', filename='imgs/favicon-32x32.png')
+		}}"
+		/>
+	</head>
+	<body>
+		<div class="error-container">
+			<h1>{{err_num}}</h1>
+			<p>{{ err_value }}</p>
+			<a href="/" class="button">Go to Homepage</a>
+		</div>
+	</body>
+</html>

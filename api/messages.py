@@ -34,3 +34,9 @@ class MessageType(enum.Enum):
     ERROR = "error"
     SUCCESS = "success"
     WARNING = "warning"
+
+
+class HttpErrorMessages(enum.Enum):
+    NOT_FOUND = "Stránka nebyla nalezena."
+    INTERNAL_SERVER_ERROR = "Chyba serveru."
+    TOO_MANY_REQUESTS = "Příliš mnoho požadavků."
