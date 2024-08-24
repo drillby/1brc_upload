@@ -27,6 +27,7 @@ class UserMessages(enum.Enum):
     USER_CREATED = "Uživatel vytvořen"
     MISSING_CREDENTIALS = "Chybějící přihlašovací údaje"
     WRONG_EMAIL_DOMAIN = "Špatná doména emailu. Povolené domény: {domains}"
+    MISSING_CLASS = "Třída neexistuje"
 
 
 class MessageType(enum.Enum):
