@@ -14,7 +14,7 @@ from typing import Callable, Iterable, Optional, Union
 from api import app
 
 from .messages import EmailMessages
-from .models.user import User, db
+from .models.database import User, db
 
 
 def allowed_file(filename: str, allwed_extensions: Iterable[str]) -> bool:
