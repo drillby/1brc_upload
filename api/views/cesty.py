@@ -2,9 +2,9 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
-from flask import flash, redirect, render_template, request, send_file, url_for
+from flask import flash, redirect, render_template, request, url_for
 
-from api import app, limiter
+from api import app
 from api.helper import SMTPHandler, allowed_email_domain, allowed_file, run_script
 
 from ..messages import (
