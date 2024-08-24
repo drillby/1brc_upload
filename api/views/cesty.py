@@ -14,12 +14,14 @@ from ..messages import (
     MessageType,
     UserMessages,
 )
-from ..models.user import User, db
+from ..models.database import Class, User, db
 
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    # query all classes and sort them by year from newest to oldest
+    classes = Class.query.order_by(Class.year.desc()).all()
+    return render_template("index.html", classes=classes)
 
 
 @app.route("/", methods=["POST"])
@@ -27,6 +29,7 @@ def upload_file():
     # get email and password from form
     email = request.form.get("email")
     password = request.form.get("password")
+    class_id = request.form.get("class")
 
     # get file from form
     file = request.files.get("file")
@@ -46,16 +49,20 @@ def upload_file():
         )
         return redirect(request.url)
 
+    # check if class exists
+    class_ = Class.query.get(class_id)
+    if not class_:
+        flash(UserMessages.MISSING_CLASS.value, MessageType.ERROR.value)
+        return redirect(request.url)
+
     # check if user exists
     user = User.query.filter_by(email=email).first()
     is_new_user = False
 
     # if user does not exist, create new user
     if not user:
-        user = User(
-            email=email,
-            password=password,
-        )
+
+        user = User(email=email, password=password, fk_class=class_id)
         db.session.add(user)
         db.session.commit()
         is_new_user = True
@@ -141,7 +148,14 @@ def upload_file():
 
 @app.route("/leaderboard")
 def leaderboard():
-    users = User.query.filter(User.best_time != 0).order_by(User.best_time).all()
+    users = (
+        db.session.query(User, Class)
+        .filter(User.best_time != 0)
+        .join(Class, User.fk_class == Class.id)
+        .order_by(User.best_time)
+        .all()
+    )
+    print(users)
     return render_template("leaderboard.html", users=users)
 
 
