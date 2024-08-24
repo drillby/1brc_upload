@@ -4,7 +4,7 @@ from flask import Flask
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-from .models.user import db
+from .models.database import db
 
 app = Flask(__name__)
 
