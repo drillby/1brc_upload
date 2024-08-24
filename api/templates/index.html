@@ -34,6 +34,14 @@
 					placeholder="Zadejte heslo"
 					required
 				/>
+				<select name="class" id="class" required>
+					<option disabled selected>Choose class</option>
+					{% for class in classes %}
+					<option value="{{class.id}}" name="class">
+						{{class.field_of_study}}{{class.grade}}
+					</option>
+					{% endfor %}
+				</select>
 				<input type="submit" value="Upload" />
 			</form>
 
