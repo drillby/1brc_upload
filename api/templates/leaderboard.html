@@ -26,6 +26,7 @@
 					<tr>
 						<th>Pořadí</th>
 						<th>Email</th>
+						<th>Třída</th>
 						<th>Čas</th>
 					</tr>
 				</thead>
@@ -35,8 +36,9 @@
 						class="{% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% elif loop.index == 3 %}bronze{% endif %}"
 					>
 						<td>{{ loop.index }}</td>
-						<td>{{ user.email }}</td>
-						<td>{{ user.best_time }}</td>
+						<td>{{ user.0.email }}</td>
+						<td>{{ user.1 }}</td>
+						<td>{{ user.0.best_time }}</td>
 					</tr>
 					{% endfor %}
 				</tbody>
